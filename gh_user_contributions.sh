@@ -33,9 +33,15 @@ fi
 ## Helper functions
 
 function user_creation_unixdate {
-    local s="$(curl -s "https://api.github.com/users/$1" | jq -r .created_at)"
+    local out="$(curl -s "https://api.github.com/users/$1")"
+    local s="$(jq -r .created_at <<<"$out")"
     if ! grep -q 'T.*Z$' <<<$s; then
-        echo "Could not find user">&2
+        local msg="$(jq -r .message <<<"$out")"
+        if [[ -n $msg ]]; then
+            echo "Server message: $msg">&2
+        else
+            echo "Could not find user">&2
+        fi
         return 1
     fi
     date +%s -d "$s"
@@ -79,7 +85,7 @@ main() {
 
     account_creation_date=$(user_creation_unixdate "$account")
     if (( $? )); then
-        echo "Unable to find account creation date">&2
+        echo "Failed to find account creation date.">&2
         exit 1
     fi
 
