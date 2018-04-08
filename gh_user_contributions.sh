@@ -56,13 +56,19 @@ function get_contrib_page {
 
 function yearly_contribs {
     typeset -i n c=0
+    typeset -i mindt
+    local dt
+
+    mindt=${fromdate//-/}
 
     # Contributions for each day of the year
     year_contribs="$(get_contrib_page "$account" "$todate" |
         grep ' class="day" .* data-count=' |
-        sed -E -e 's/.* data-count="([^"]+)" .*/\1/')"
+        sed -E -e 's/.* data-count="([^"]+)" .*data-date="([^"]+)".*/\1 \2/')"
     # Have to do this (temp. variable) for bash compatibility
-    while read n; do (( c += n )); done <<<$(echo "$year_contribs")
+    while read n dt; do
+        (( ${dt//-/} > mindt )) && (( c += n ))
+    done <<<$(echo "$year_contribs")
 
     echo $c
 }
@@ -93,14 +99,15 @@ main() {
 
     todate="$(date +"%Y-%m-%d")"
     for (( i = 0 ; i < number_of_years ; i++ )); do
+        fromdate="$(date -d "$todate - 1 year" +"%Y-%m-%d")"
         typeset -i y=$(yearly_contribs "$account" "$todate")
         (( count += y ))
         echo "* $todate: $y" >&2
 
-        todate="$(date -d "$todate - 1 year" +"%Y-%m-%d")"
-
         # Stop when we're beyond account creation and there was no contribution
-        (( $(date +%s -d "$todate") < account_creation_date && y == 0 )) && break
+        (( $(date +%s -d "$fromdate") < account_creation_date && y == 0 )) && break
+
+        todate=$fromdate
     done
 
     # Send only the total number to stdout
