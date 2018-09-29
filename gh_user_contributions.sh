@@ -52,6 +52,10 @@ function get_contrib_page {
     local u=$1
     local d=$2
     curl -s "https://github.com/users/$u/contributions?to=$d"
+    if ! curl -fs "https://github.com/users/$u/contributions?to=$d"; then
+        echo "Could not download $u's contributions page for $d." >&2
+        exit 1
+    fi
 }
 
 function yearly_contribs {
@@ -65,6 +69,7 @@ function yearly_contribs {
     year_contribs="$(get_contrib_page "$account" "$todate" |
         grep ' class="day" .* data-count=' |
         sed -E -e 's/.* data-count="([^"]+)" .*data-date="([^"]+)".*/\1 \2/')"
+    [[ -n $year_contribs ]] || exit 1
     # Have to do this (temp. variable) for bash compatibility
     while read n dt; do
         (( ${dt//-/} > mindt )) && (( c += n ))
@@ -99,8 +104,14 @@ main() {
 
     todate="$(date +"%Y-%m-%d")"
     for (( i = 0 ; i < number_of_years ; i++ )); do
+        typeset -i y
         fromdate="$(date -d "$todate - 1 year" +"%Y-%m-%d")"
-        typeset -i y=$(yearly_contribs "$account" "$todate")
+        y=$(yearly_contribs "$account" "$todate")
+        if (( $? )); then
+            echo "Failed to scrape contributions page ($todate)." >&2
+            exit 1
+        fi
+
         (( count += y ))
         echo "* $todate: $y" >&2
 
