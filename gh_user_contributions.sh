@@ -51,7 +51,6 @@ function user_creation_unixdate {
 function get_contrib_page {
     local u=$1
     local d=$2
-    curl -s "https://github.com/users/$u/contributions?to=$d"
     if ! curl -fs "https://github.com/users/$u/contributions?to=$d"; then
         echo "Could not download $u's contributions page for $d." >&2
         exit 1
